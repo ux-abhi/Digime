@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DigiMe Widget Test</title>
+  <style>
+    body { font-family: system-ui; max-width: 800px; margin: 60px auto; padding: 0 20px; color: #333; }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    p { color: #666; line-height: 1.6; }
+    code { background: #f0f0f0; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>DigiMe Widget Test Page</h1>
+  <p>This page tests the DigiMe chat widget. You should see a chat bubble in the bottom-right corner.</p>
+  <p>Make sure your Next.js dev server is running at <code>http://localhost:3000</code> and you have a chatbot created with the ID below.</p>
+  <p><strong>Replace YOUR_CHATBOT_ID</strong> in the script tag below with your actual chatbot UUID from the database.</p>
+
+  <!-- DigiMe Widget -->
+  <script src="http://localhost:3000/widget.js?id=YOUR_CHATBOT_ID" defer></script>
+</body>
+</html>
