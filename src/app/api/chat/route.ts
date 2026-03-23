@@ -128,12 +128,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: aiResponse,
       conversation_id: convId,
+    }, {
+      headers: corsHeaders(),
     });
   } catch (error) {
     console.error("Chat API error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders() }
     );
   }
+}
+
+// CORS preflight
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders() });
+}
+
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
 }
