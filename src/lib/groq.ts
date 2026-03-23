@@ -1,6 +1,8 @@
 import Groq from "groq-sdk";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+function getGroqClient() {
+  return new Groq({ apiKey: process.env.GROQ_API_KEY });
+}
 
 // Model rotation: try each in order, fall back on rate limit / error
 const MODELS = [
@@ -23,7 +25,7 @@ export async function chatCompletion(
 
   for (const model of MODELS) {
     try {
-      const response = await groq.chat.completions.create({
+      const response = await getGroqClient().chat.completions.create({
         model,
         messages,
         max_tokens: maxTokens,
