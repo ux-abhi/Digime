@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     if (!chatbot_id || !visitor_id || !message) {
       return NextResponse.json(
         { error: "Missing required fields: chatbot_id, visitor_id, message" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders() }
       );
     }
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (chatbotError || !chatbot) {
-      return NextResponse.json({ error: "Chatbot not found or inactive" }, { status: 404 });
+      return NextResponse.json({ error: "Chatbot not found or inactive" }, { status: 404, headers: corsHeaders() });
     }
 
     // 2. Fetch knowledge entries

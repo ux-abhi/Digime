@@ -5,7 +5,7 @@
   const SCRIPT = document.currentScript || document.querySelector('script[src*="widget.js"]');
   const PARAMS = new URL(SCRIPT.src).searchParams;
   const BOT_ID = PARAMS.get("id");
-  const API_BASE = SCRIPT.src.split("/widget.js")[0];
+  const API_BASE = SCRIPT.src.split("/widget.js")[0].replace(/\/+$/, "");
 
   if (!BOT_ID) {
     console.error("[DigiMe] Missing chatbot id. Use: <script src=\"widget.js?id=YOUR_ID\"></script>");
