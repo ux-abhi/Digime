@@ -162,7 +162,7 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
             </h2>
             <div className="space-y-2">
               {typeEntries.map((entry) => {
-                const data = entry.data as Record<string, unknown>;
+                const data = entry.data as unknown as Record<string, unknown>;
                 const title =
                   (data.name as string) ||
                   (data.section as string) ||

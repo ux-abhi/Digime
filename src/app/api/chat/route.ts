@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
       .eq("id", convId);
 
     // 8. Update chatbot conversation count
-    await supabase.rpc("increment_conversations", { bot_id: chatbot_id }).catch(() => {
+    await supabase.rpc("increment_conversations", { bot_id: chatbot_id }).then(null, () => {
       // Fallback: direct update
       supabase
         .from("chatbots")
