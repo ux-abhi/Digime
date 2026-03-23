@@ -1,0 +1,136 @@
+"use client";
+
+import { useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+  const supabase = createClient();
+
+  async function handleEmailLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setSent(true);
+    }
+    setLoading(false);
+  }
+
+  async function handleGoogleLogin() {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/callback`,
+      },
+    });
+    if (error) setError(error.message);
+    setLoading(false);
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--color-surface)] flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <Link href="/" className="block text-center mb-10">
+          <span className="font-[var(--font-display)] text-3xl font-800 tracking-tight text-[var(--color-ink)]">
+            digi<span className="text-[var(--color-brand)]">me</span>
+          </span>
+        </Link>
+
+        <div className="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-[var(--radius-xl)] p-8 shadow-sm">
+          <h1 className="text-xl font-semibold text-[var(--color-ink)] text-center mb-1">
+            Welcome back
+          </h1>
+          <p className="text-sm text-[var(--color-ink-muted)] text-center mb-6">
+            Sign in to your DigiMe dashboard
+          </p>
+
+          {sent ? (
+            <div className="text-center">
+              <div className="text-4xl mb-3">✉️</div>
+              <p className="text-sm text-[var(--color-ink-muted)]">
+                Check your email for a magic link to sign in.
+              </p>
+              <p className="text-xs text-[var(--color-ink-faint)] mt-2">
+                Sent to <strong className="text-[var(--color-ink)]">{email}</strong>
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Google */}
+              <button
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] text-sm font-medium text-[var(--color-ink)] px-4 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-sunken)] transition-colors disabled:opacity-50 mb-4"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                </svg>
+                Continue with Google
+              </button>
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[var(--color-border)]" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="bg-[var(--color-surface-raised)] px-3 text-[var(--color-ink-faint)]">
+                    or continue with email
+                  </span>
+                </div>
+              </div>
+
+              {/* Email */}
+              <form onSubmit={handleEmailLogin}>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  className="w-full text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-4 py-2.5 rounded-[var(--radius-md)] mb-3 outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)]/20 transition-all placeholder:text-[var(--color-ink-faint)]"
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !email}
+                  className="w-full text-sm font-medium bg-[var(--color-brand)] text-white px-4 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-brand-dark)] transition-colors disabled:opacity-50"
+                >
+                  {loading ? "Sending..." : "Send Magic Link"}
+                </button>
+              </form>
+            </>
+          )}
+
+          {error && (
+            <p className="text-xs text-[var(--color-danger)] text-center mt-3">
+              {error}
+            </p>
+          )}
+        </div>
+
+        <p className="text-xs text-[var(--color-ink-faint)] text-center mt-6">
+          By signing in, you agree to our Terms of Service.
+        </p>
+      </div>
+    </div>
+  );
+}
