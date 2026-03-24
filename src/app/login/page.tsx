@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -44,17 +45,34 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)] flex items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Gradient mesh background */}
+      <div className="absolute inset-0 bg-[var(--color-surface)]" />
+      <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-[var(--color-brand)]/5 blur-3xl" />
+      <div className="absolute bottom-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-[var(--color-brand)]/3 blur-3xl" />
+
+      {/* Back to home */}
+      <Link
+        href="/"
+        className="absolute top-6 left-6 flex items-center gap-1.5 text-sm text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] transition-colors z-10"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to home
+      </Link>
+
+      <div className="w-full max-w-sm relative z-10 animate-fade-in-up">
         {/* Logo */}
-        <Link href="/" className="block text-center mb-10">
+        <Link href="/" className="block text-center mb-3">
           <span className="font-[var(--font-display)] text-3xl font-800 tracking-tight text-[var(--color-ink)]">
             digi<span className="text-[var(--color-brand)]">me</span>
           </span>
         </Link>
+        <p className="text-sm text-[var(--color-ink-muted)] text-center mb-8">
+          Turn your portfolio into a 24/7 AI sales rep
+        </p>
 
-        <div className="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-[var(--radius-xl)] p-8 shadow-sm">
-          <h1 className="text-xl font-semibold text-[var(--color-ink)] text-center mb-1">
+        <div className="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-[var(--radius-xl)] p-8 shadow-xl shadow-black/4">
+          <h1 className="font-[var(--font-display)] text-xl font-700 text-[var(--color-ink)] text-center mb-1">
             Welcome back
           </h1>
           <p className="text-sm text-[var(--color-ink-muted)] text-center mb-6">
@@ -62,7 +80,7 @@ export default function LoginPage() {
           </p>
 
           {sent ? (
-            <div className="text-center">
+            <div className="text-center animate-fade-in">
               <div className="text-4xl mb-3">✉️</div>
               <p className="text-sm text-[var(--color-ink-muted)]">
                 Check your email for a magic link to sign in.
@@ -77,7 +95,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] text-sm font-medium text-[var(--color-ink)] px-4 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-sunken)] transition-colors disabled:opacity-50 mb-4"
+                className="w-full flex items-center justify-center gap-3 bg-[var(--color-surface)] border border-[var(--color-border-strong)] text-sm font-medium text-[var(--color-ink)] px-4 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-sunken)] hover:shadow-sm transition-all disabled:opacity-50 mb-4"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -107,12 +125,12 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  className="w-full text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-4 py-2.5 rounded-[var(--radius-md)] mb-3 outline-none focus:border-[var(--color-brand)] focus:ring-1 focus:ring-[var(--color-brand)]/20 transition-all placeholder:text-[var(--color-ink-faint)]"
+                  className="w-full text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-4 py-2.5 rounded-[var(--radius-md)] mb-3 outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/10 transition-all placeholder:text-[var(--color-ink-faint)]"
                 />
                 <button
                   type="submit"
                   disabled={loading || !email}
-                  className="w-full text-sm font-medium bg-[var(--color-brand)] text-white px-4 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-brand-dark)] transition-colors disabled:opacity-50"
+                  className="w-full text-sm font-medium bg-[var(--color-brand)] text-white px-4 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-brand-dark)] transition-all disabled:opacity-50 shadow-sm shadow-[var(--color-brand)]/20"
                 >
                   {loading ? "Sending..." : "Send Magic Link"}
                 </button>
