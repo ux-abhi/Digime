@@ -52,6 +52,12 @@
       display:flex;align-items:center;justify-content:center;
       box-shadow:0 4px 24px rgba(0,0,0,.15),0 1px 4px rgba(0,0,0,.08);
       transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;
+      animation:dm-fab-enter .5s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes dm-fab-enter{
+      from{transform:scale(0);opacity:0}
+      60%{transform:scale(1.15)}
+      to{transform:scale(1);opacity:1}
     }
     .dm-fab:hover{transform:scale(1.08);box-shadow:0 6px 32px rgba(0,0,0,.2)}
     .dm-fab:active{transform:scale(.96)}
@@ -63,6 +69,11 @@
       position:absolute;top:-2px;right:-2px;width:18px;height:18px;
       border-radius:50%;background:#DC2626;color:#fff;font-size:10px;font-weight:700;
       display:none;align-items:center;justify-content:center;border:2px solid #fff;
+      animation:dm-pulse-shadow 2s ease-in-out infinite;
+    }
+    @keyframes dm-pulse-shadow{
+      0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}
+      50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}
     }
 
     /* ─── Chat Window ─── */
@@ -81,7 +92,7 @@
     .dm-header{
       padding:16px 18px;border-bottom:1px solid var(--dm-border);
       display:flex;align-items:center;gap:12px;
-      background:var(--dm-bg);
+      background:linear-gradient(135deg, var(--dm-bg), color-mix(in srgb, var(--dm-accent) 3%, var(--dm-bg)));
     }
     .dm-avatar{
       width:36px;height:36px;border-radius:50%;
@@ -107,7 +118,14 @@
     .dm-messages::-webkit-scrollbar{width:4px}
     .dm-messages::-webkit-scrollbar-thumb{background:var(--dm-border);border-radius:4px}
 
-    .dm-msg{max-width:82%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.55;word-wrap:break-word}
+    .dm-msg{
+      max-width:82%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.55;word-wrap:break-word;
+      animation:dm-msg-in .3s ease-out both;
+    }
+    @keyframes dm-msg-in{
+      from{opacity:0;transform:translateY(8px)}
+      to{opacity:1;transform:translateY(0)}
+    }
     .dm-msg.user{
       align-self:flex-end;background:var(--dm-accent);color:#fff;
       border-bottom-right-radius:4px;
@@ -120,23 +138,29 @@
     /* ─── Typing Indicator ─── */
     .dm-typing{
       align-self:flex-start;background:var(--dm-surface);border-radius:14px;
-      padding:12px 16px;display:none;gap:4px;align-items:center;
+      padding:12px 16px;display:none;gap:5px;align-items:center;
       border-bottom-left-radius:4px;
     }
     .dm-typing.show{display:flex}
     .dm-dot{
       width:6px;height:6px;border-radius:50%;background:var(--dm-ink-faint);
-      animation:dm-bounce .6s infinite alternate;
+      animation:dm-bounce .6s ease-in-out infinite alternate;
     }
     .dm-dot:nth-child(2){animation-delay:.15s}
     .dm-dot:nth-child(3){animation-delay:.3s}
-    @keyframes dm-bounce{to{opacity:.3;transform:translateY(-4px)}}
+    @keyframes dm-bounce{
+      from{opacity:.4;transform:translateY(0)}
+      to{opacity:1;transform:translateY(-4px)}
+    }
 
     /* ─── Project Card ─── */
     .dm-card{
       align-self:flex-start;max-width:88%;border-radius:12px;overflow:hidden;
       border:1px solid var(--dm-border);background:var(--dm-bg);
+      animation:dm-msg-in .3s ease-out both;
+      transition:transform .15s;
     }
+    .dm-card:hover{transform:scale(1.01)}
     .dm-card-img{width:100%;height:140px;object-fit:cover;display:block}
     .dm-card-body{padding:12px 14px}
     .dm-card-title{font-size:13px;font-weight:600;color:var(--dm-ink);margin-bottom:3px}
@@ -150,7 +174,7 @@
     .dm-card-link{
       display:block;padding:8px 14px;border-top:1px solid var(--dm-border);
       font-size:11px;font-weight:500;color:var(--dm-accent);text-decoration:none;
-      text-align:center;
+      text-align:center;transition:background .15s;
     }
     .dm-card-link:hover{background:var(--dm-accent-light)}
 
@@ -159,9 +183,10 @@
       align-self:flex-start;display:flex;align-items:center;gap:10px;
       padding:10px 14px;border-radius:12px;border:1px solid var(--dm-border);
       background:var(--dm-bg);text-decoration:none;max-width:82%;
-      transition:border-color .15s;
+      transition:border-color .15s,transform .15s;
+      animation:dm-msg-in .3s ease-out both;
     }
-    .dm-link-card:hover{border-color:var(--dm-accent)}
+    .dm-link-card:hover{border-color:var(--dm-accent);transform:scale(1.01)}
     .dm-link-icon{
       width:32px;height:32px;border-radius:8px;background:var(--dm-accent-light);
       display:flex;align-items:center;justify-content:center;flex-shrink:0;
