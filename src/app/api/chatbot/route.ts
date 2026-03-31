@@ -51,6 +51,20 @@ export async function GET(request: NextRequest) {
     plan = user?.plan || "free";
   }
 
+  // Get conversation count this month for rate limit info
+  const firstOfMonth = new Date();
+  firstOfMonth.setDate(1);
+  firstOfMonth.setHours(0, 0, 0, 0);
+
+  const { count: conversationsThisMonth } = await supabase
+    .from("conversations")
+    .select("id", { count: "exact", head: true })
+    .eq("chatbot_id", chatbotId)
+    .gte("started_at", firstOfMonth.toISOString());
+
+  const { PLAN_LIMITS } = await import("@/lib/types");
+  const planLimits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS];
+
   return NextResponse.json({
     ...chatbot,
     plan,
@@ -59,6 +73,11 @@ export async function GET(request: NextRequest) {
       lead_capture: plan !== "free",
       voice_input: plan !== "free",
       show_branding: plan === "free",
+    },
+    usage: {
+      conversations_this_month: conversationsThisMonth || 0,
+      conversation_limit: planLimits.max_conversations_per_month,
+      rate_limited: planLimits.max_conversations_per_month !== Infinity && (conversationsThisMonth || 0) >= planLimits.max_conversations_per_month,
     },
   }, {
     headers: {

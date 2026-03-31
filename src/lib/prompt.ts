@@ -103,6 +103,16 @@ function buildBehaviorLayer(chatbot: Chatbot): string {
     '- For link cards: ```card\n{"type":"link","platform":"...","url":"...","handle":"..."}\n```',
   ];
 
+  // Lead capture form
+  behaviors.push(
+    '- When a visitor wants to get in touch, hire, collaborate, or work together, include a lead capture form: ```card\n{"type":"lead_form"}\n```'
+  );
+
+  // CV / Resume card
+  behaviors.push(
+    '- When asked about resume or CV, include: ```card\n{"type":"cv","name":"My Resume","subtitle":"Download my latest resume","url":""}\n```'
+  );
+
   if (chatbot.cal_username && chatbot.cal_slug) {
     behaviors.push(
       `- You can help visitors book a call. When they want to schedule, say something like "I'd love to chat! Let me help you find a time." and include: \`\`\`booking\n{"action":"start"}\n\`\`\``
