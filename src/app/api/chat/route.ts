@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { assembleSystemPrompt } from "@/lib/prompt";
 import { chatCompletion, type ChatMessage } from "@/lib/groq";
-import type { Chatbot, KnowledgeEntry, Message } from "@/lib/types";
+import type { Chatbot, KnowledgeEntry, Message, PlanType } from "@/lib/types";
+import { PLAN_LIMITS } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +29,39 @@ export async function POST(request: NextRequest) {
 
     if (chatbotError || !chatbot) {
       return NextResponse.json({ error: "Chatbot not found or inactive" }, { status: 404, headers: corsHeaders() });
+    }
+
+    // 1b. Rate limiting — check plan conversation limits
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", (chatbot as Chatbot).user_id)
+      .single();
+
+    const plan = (profile?.plan || "free") as PlanType;
+    const limits = PLAN_LIMITS[plan];
+
+    if (limits.max_conversations_per_month !== Infinity) {
+      const firstOfMonth = new Date();
+      firstOfMonth.setDate(1);
+      firstOfMonth.setHours(0, 0, 0, 0);
+
+      const { count } = await supabase
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .eq("chatbot_id", chatbot_id)
+        .gte("started_at", firstOfMonth.toISOString());
+
+      if ((count || 0) >= limits.max_conversations_per_month) {
+        return NextResponse.json(
+          {
+            error: "Monthly conversation limit reached. Please upgrade your plan.",
+            upgrade: true,
+            limit: limits.max_conversations_per_month,
+          },
+          { status: 429, headers: corsHeaders() }
+        );
+      }
     }
 
     // 2. Fetch knowledge entries
