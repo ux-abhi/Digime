@@ -45,27 +45,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=${msg}`);
   }
 
-  // Auto-create profile for new users (e.g. first Google sign-in)
-  if (data?.user) {
-    const adminSupabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { cookies: { getAll: () => [], setAll: () => {} } }
-    );
-    const { data: existingProfile } = await adminSupabase
-      .from("profiles")
-      .select("id")
-      .eq("id", data.user.id)
-      .single();
+  // Auto-create profile for new users (e.g. first Google sign-in).
+  // Wrapped in try/catch — profile creation must never break the auth flow.
+  try {
+    if (data?.user && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const adminSupabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        { cookies: { getAll: () => [], setAll: () => {} } }
+      );
+      const { data: existingProfile } = await adminSupabase
+        .from("profiles")
+        .select("id")
+        .eq("id", data.user.id)
+        .single();
 
-    if (!existingProfile) {
-      await adminSupabase.from("profiles").insert({
-        id: data.user.id,
-        email: data.user.email,
-        name: data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "",
-        plan: "free",
-      });
+      if (!existingProfile) {
+        await adminSupabase.from("profiles").insert({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.user_metadata?.full_name || data.user.email?.split("@")[0] || "",
+          plan: "free",
+        });
+      }
     }
+  } catch (e) {
+    // Non-fatal — user is authenticated, profile creation can be retried later
+    console.error("[auth/callback] profile upsert failed:", e);
   }
 
   return supabaseResponse;
