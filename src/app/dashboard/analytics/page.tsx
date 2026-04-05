@@ -25,7 +25,7 @@ export default async function AnalyticsPage() {
     .eq("chatbot_id", chatbot.id);
 
   const totalMessages =
-    allConvs?.reduce((sum, c) => sum + (c.message_count || 0), 0) ?? 0;
+    allConvs?.reduce((sum: number, c: { message_count: number | null }) => sum + (c.message_count || 0), 0) ?? 0;
 
   // Bookings count
   const { count: totalBookings } = await supabase
