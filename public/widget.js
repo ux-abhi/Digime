@@ -12,6 +12,29 @@
     return;
   }
 
+  // ─── Iframe Escape ───
+  // Framer (and similar builders) wrap Code Embed components inside sandboxed iframes.
+  // position:fixed inside an iframe anchors to the iframe viewport, not the page — breaking the widget.
+  // If we're inside an iframe, attempt to inject the script into the parent document instead.
+  if (window.self !== window.top) {
+    try {
+      // Same-origin parent (custom apps, non-sandboxed iframes): inject directly
+      const s = window.parent.document.createElement("script");
+      s.src = SCRIPT.src;
+      window.parent.document.body.appendChild(s);
+    } catch (e) {
+      // Cross-origin sandbox (Framer Code Embed, etc.): can't escape programmatically.
+      // User must inject via Site Settings → Custom Code → End of <body> instead.
+      console.warn(
+        "[DigiMe] Widget is running inside a cross-origin iframe and cannot render correctly.\n" +
+        "→ In Framer: go to Site Settings → Custom Code → paste the script tag at the end of <body>.\n" +
+        "→ In Webflow: paste in Project Settings → Custom Code → Footer Code.\n" +
+        "→ In any builder: add the script directly to the page HTML, not via an Embed component."
+      );
+    }
+    return; // Either the parent will run the real instance, or we stop here.
+  }
+
   // ─── State ───
   let config = null;
   let conversationId = null;
@@ -34,6 +57,8 @@
   const style = document.createElement("style");
   style.textContent = `
     #digime-widget *,#digime-widget *::before,#digime-widget *::after{box-sizing:border-box;margin:0;padding:0}
+    #digime-widget button{outline:none}
+    #digime-widget button:focus-visible{outline:2px solid var(--dm-accent);outline-offset:2px}
     #digime-widget{
       --dm-accent:#111111;
       --dm-accent-light:#11111114;
@@ -102,6 +127,7 @@
       margin-left:auto;background:none;border:none;cursor:pointer;
       color:var(--dm-ink-faint);padding:4px;border-radius:6px;
       display:flex;align-items:center;justify-content:center;transition:background .15s;
+      outline:none;
     }
     .dm-close:hover{background:var(--dm-surface);color:var(--dm-ink)}
     .dm-close svg{width:16px;height:16px}
@@ -139,9 +165,11 @@
       background:var(--dm-bg);color:var(--dm-ink);font-family:var(--dm-font);
       font-size:12px;font-weight:500;cursor:pointer;text-align:left;
       line-height:1.4;transition:border-color .15s,background .15s,transform .1s;
+      outline:none;
     }
     .dm-sg-btn:hover{border-color:var(--dm-accent);background:var(--dm-accent-light);transform:translateY(-1px)}
     .dm-sg-btn:active{transform:scale(.97)}
+    .dm-sg-btn:focus-visible{border-color:var(--dm-accent);box-shadow:0 0 0 2px var(--dm-accent-light)}
 
     /* ─── Chat View ─── */
     .dm-chat-view{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative}
@@ -312,6 +340,7 @@
     .dm-send:hover{opacity:.88}
     .dm-send:active{transform:scale(.92)}
     .dm-send:disabled{opacity:.35;cursor:default}
+    .dm-send:focus-visible{box-shadow:0 0 0 3px var(--dm-accent-light)}
     .dm-send svg{width:16px;height:16px}
 
     /* ─── Branding ─── */
