@@ -114,12 +114,13 @@
     .dm-orb-wrap{position:relative;width:90px;height:90px;margin-bottom:4px;flex-shrink:0}
     .dm-orb{
       position:absolute;inset:0;border-radius:50%;
-      background:radial-gradient(circle at 35% 35%, var(--dm-accent), transparent 65%);
-      animation:dm-orb-pulse 3s ease-in-out infinite alternate;
+      background:conic-gradient(from 180deg at 50% 50%, var(--dm-accent) 0deg, transparent 120deg, var(--dm-accent) 240deg, transparent 360deg);
+      animation:dm-orb-pulse 4s ease-in-out infinite alternate;
+      filter:blur(6px);
     }
     @keyframes dm-orb-pulse{
-      0%{transform:scale(1);opacity:.55}
-      100%{transform:scale(1.1);opacity:.85}
+      0%{transform:scale(.92) rotate(0deg);opacity:.45}
+      100%{transform:scale(1.08) rotate(60deg);opacity:.75}
     }
     .dm-avatar-lg{
       position:absolute;inset:8px;border-radius:50%;
@@ -132,6 +133,7 @@
       text-align:center;line-height:1.5;max-width:280px;
     }
     .dm-suggestion-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:320px}
+    .dm-suggestion-grid .dm-sg-btn:only-child,.dm-suggestion-grid .dm-sg-btn:nth-child(odd):last-child{grid-column:1/-1}
     .dm-sg-btn{
       padding:10px 12px;border-radius:12px;border:1px solid var(--dm-border);
       background:var(--dm-bg);color:var(--dm-ink);font-family:var(--dm-font);
@@ -142,6 +144,8 @@
 
     /* ─── Chat View ─── */
     .dm-chat-view{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+    .dm-chat-view.fade-in{animation:dm-view-in .2s ease-out both}
+    @keyframes dm-view-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
     /* ─── Messages ─── */
     .dm-messages{
@@ -423,9 +427,7 @@
     fab.innerHTML = ICONS.close;
     fab.classList.add("open");
     unreadEl.style.display = "none";
-    if (uiState === "chat") {
-      requestAnimationFrame(() => inputEl.focus());
-    }
+    requestAnimationFrame(() => inputEl.focus());
     try { window.parent.postMessage({ type: "digime:opened" }, "*"); } catch(e) {}
   }
 
@@ -446,10 +448,9 @@
     uiState = "chat";
     welcomeViewEl.style.display = "none";
     chatViewEl.style.display = "flex";
-    // Add greeting as first bot message
-    if (config?.greeting) {
-      appendMessage("bot", config.greeting);
-    }
+    chatViewEl.classList.add("fade-in");
+    // Don't repeat the greeting — it was already shown on the welcome screen.
+    // Jump straight into the user's message flow.
     requestAnimationFrame(() => {
       scrollToBottom();
       inputEl.focus();
@@ -804,6 +805,15 @@
     if (e.data.type === "digime:close") closeWidget();
   });
 
+  // ─── Avatar ───
+  function renderAvatar(el, cfg) {
+    if (cfg.avatar_url) {
+      el.innerHTML = `<img src="${escapeHtml(cfg.avatar_url)}" alt="${escapeHtml(cfg.name || "")}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" />`;
+    } else {
+      el.textContent = (cfg.name || "A")[0].toUpperCase();
+    }
+  }
+
   // ─── Init ───
   async function init() {
     try {
@@ -817,8 +827,8 @@
       // Update UI with bot identity
       const initial = (config.name || "A")[0].toUpperCase();
       nameEl.textContent = config.name || "AI Assistant";
-      avatarEl.textContent = initial;
-      avatarLgEl.textContent = initial;
+      renderAvatar(avatarEl, config);
+      renderAvatar(avatarLgEl, config);
 
       // Welcome greeting
       const greeting = config.greeting || "Hey! How can I help you?";
@@ -833,6 +843,9 @@
       if (config.usage?.rate_limited) {
         welcomeGreetingEl.textContent = "This chatbot has reached its monthly conversation limit. Please try again next month.";
         suggestionsEl.style.display = "none";
+        inputEl.disabled = true;
+        sendBtn.disabled = true;
+        inputEl.placeholder = "Chat unavailable";
       } else {
         renderWelcomeSuggestions(config.suggested_questions);
       }
