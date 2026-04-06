@@ -805,6 +805,15 @@
     if (e.data.type === "digime:close") closeWidget();
   });
 
+  // ─── Avatar ───
+  function renderAvatar(el, cfg) {
+    if (cfg.avatar_url) {
+      el.innerHTML = `<img src="${escapeHtml(cfg.avatar_url)}" alt="${escapeHtml(cfg.name || "")}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" />`;
+    } else {
+      el.textContent = (cfg.name || "A")[0].toUpperCase();
+    }
+  }
+
   // ─── Init ───
   async function init() {
     try {
@@ -818,8 +827,8 @@
       // Update UI with bot identity
       const initial = (config.name || "A")[0].toUpperCase();
       nameEl.textContent = config.name || "AI Assistant";
-      avatarEl.textContent = initial;
-      avatarLgEl.textContent = initial;
+      renderAvatar(avatarEl, config);
+      renderAvatar(avatarLgEl, config);
 
       // Welcome greeting
       const greeting = config.greeting || "Hey! How can I help you?";

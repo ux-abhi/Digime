@@ -48,6 +48,7 @@ export default function SettingsPage() {
         cal_slug: chatbot.cal_slug,
         personality: chatbot.personality,
         is_active: chatbot.is_active,
+        avatar_url: chatbot.avatar_url || null,
       })
       .eq("id", chatbot.id);
 
@@ -123,6 +124,33 @@ export default function SettingsPage() {
                 onChange={(e) => update("portfolio_url", e.target.value)}
                 placeholder="https://yourportfolio.com"
                 className="w-full text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-3 py-2.5 rounded-[var(--radius-md)] outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/10 transition-all placeholder:text-[var(--color-ink-faint)]"
+              />
+            </div>
+          </div>
+          <div className="mt-4">
+            <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
+              Avatar Image URL
+            </label>
+            <div className="flex items-center gap-3">
+              {chatbot.avatar_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={chatbot.avatar_url}
+                  alt="Avatar preview"
+                  className="w-10 h-10 rounded-full object-cover border border-[var(--color-border)] shrink-0"
+                />
+              )}
+              {!chatbot.avatar_url && (
+                <div className="w-10 h-10 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border)] flex items-center justify-center text-sm font-bold text-[var(--color-ink-faint)] shrink-0">
+                  {(chatbot.name || "A")[0].toUpperCase()}
+                </div>
+              )}
+              <input
+                type="url"
+                value={chatbot.avatar_url || ""}
+                onChange={(e) => update("avatar_url", e.target.value)}
+                placeholder="https://example.com/avatar.jpg"
+                className="flex-1 text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-3 py-2.5 rounded-[var(--radius-md)] outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/10 transition-all placeholder:text-[var(--color-ink-faint)]"
               />
             </div>
           </div>
@@ -203,8 +231,13 @@ export default function SettingsPage() {
             <div className="w-[320px] bg-white rounded-2xl shadow-xl border border-[var(--color-border)] overflow-hidden">
               {/* Preview header */}
               <div className="flex items-center gap-3 p-4 border-b border-[var(--color-border)]" style={{ background: `linear-gradient(135deg, ${chatbot.accent_color}08, ${chatbot.accent_color}04)` }}>
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style={{ backgroundColor: chatbot.accent_color }}>
-                  {(chatbot.name || "A")[0].toUpperCase()}
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold overflow-hidden" style={{ backgroundColor: chatbot.accent_color }}>
+                  {chatbot.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={chatbot.avatar_url} alt={chatbot.name} className="w-full h-full object-cover" />
+                  ) : (
+                    (chatbot.name || "A")[0].toUpperCase()
+                  )}
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-[var(--color-ink)]">{chatbot.name}</p>
