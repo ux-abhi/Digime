@@ -57,6 +57,8 @@
   const style = document.createElement("style");
   style.textContent = `
     #digime-widget *,#digime-widget *::before,#digime-widget *::after{box-sizing:border-box;margin:0;padding:0}
+    #digime-widget button{outline:none}
+    #digime-widget button:focus-visible{outline:2px solid var(--dm-accent);outline-offset:2px}
     #digime-widget{
       --dm-accent:#111111;
       --dm-accent-light:#11111114;
@@ -125,6 +127,7 @@
       margin-left:auto;background:none;border:none;cursor:pointer;
       color:var(--dm-ink-faint);padding:4px;border-radius:6px;
       display:flex;align-items:center;justify-content:center;transition:background .15s;
+      outline:none;
     }
     .dm-close:hover{background:var(--dm-surface);color:var(--dm-ink)}
     .dm-close svg{width:16px;height:16px}
@@ -162,9 +165,11 @@
       background:var(--dm-bg);color:var(--dm-ink);font-family:var(--dm-font);
       font-size:12px;font-weight:500;cursor:pointer;text-align:left;
       line-height:1.4;transition:border-color .15s,background .15s,transform .1s;
+      outline:none;
     }
     .dm-sg-btn:hover{border-color:var(--dm-accent);background:var(--dm-accent-light);transform:translateY(-1px)}
     .dm-sg-btn:active{transform:scale(.97)}
+    .dm-sg-btn:focus-visible{border-color:var(--dm-accent);box-shadow:0 0 0 2px var(--dm-accent-light)}
 
     /* ─── Chat View ─── */
     .dm-chat-view{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative}
@@ -335,6 +340,7 @@
     .dm-send:hover{opacity:.88}
     .dm-send:active{transform:scale(.92)}
     .dm-send:disabled{opacity:.35;cursor:default}
+    .dm-send:focus-visible{box-shadow:0 0 0 3px var(--dm-accent-light)}
     .dm-send svg{width:16px;height:16px}
 
     /* ─── Branding ─── */
