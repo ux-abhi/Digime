@@ -12,6 +12,29 @@
     return;
   }
 
+  // ─── Iframe Escape ───
+  // Framer (and similar builders) wrap Code Embed components inside sandboxed iframes.
+  // position:fixed inside an iframe anchors to the iframe viewport, not the page — breaking the widget.
+  // If we're inside an iframe, attempt to inject the script into the parent document instead.
+  if (window.self !== window.top) {
+    try {
+      // Same-origin parent (custom apps, non-sandboxed iframes): inject directly
+      const s = window.parent.document.createElement("script");
+      s.src = SCRIPT.src;
+      window.parent.document.body.appendChild(s);
+    } catch (e) {
+      // Cross-origin sandbox (Framer Code Embed, etc.): can't escape programmatically.
+      // User must inject via Site Settings → Custom Code → End of <body> instead.
+      console.warn(
+        "[DigiMe] Widget is running inside a cross-origin iframe and cannot render correctly.\n" +
+        "→ In Framer: go to Site Settings → Custom Code → paste the script tag at the end of <body>.\n" +
+        "→ In Webflow: paste in Project Settings → Custom Code → Footer Code.\n" +
+        "→ In any builder: add the script directly to the page HTML, not via an Embed component."
+      );
+    }
+    return; // Either the parent will run the real instance, or we stop here.
+  }
+
   // ─── State ───
   let config = null;
   let conversationId = null;
@@ -34,6 +57,8 @@
   const style = document.createElement("style");
   style.textContent = `
     #digime-widget *,#digime-widget *::before,#digime-widget *::after{box-sizing:border-box;margin:0;padding:0}
+    #digime-widget button{outline:none}
+    #digime-widget button:focus-visible{outline:2px solid var(--dm-accent);outline-offset:2px}
     #digime-widget{
       --dm-accent:#111111;
       --dm-accent-light:#11111114;
@@ -80,7 +105,7 @@
       display:flex;flex-direction:column;overflow:hidden;
       opacity:0;transform:translateY(12px) scale(.96);pointer-events:none;
       transition:opacity .25s,transform .25s cubic-bezier(.34,1.56,.64,1);
-      max-height:600px;
+      max-height:680px;
     }
     .dm-window.open{opacity:1;transform:translateY(0) scale(1);pointer-events:all}
 
@@ -96,12 +121,13 @@
       display:flex;align-items:center;justify-content:center;
       font-size:13px;font-weight:700;flex-shrink:0;
     }
-    .dm-header-text h3{font-size:13.5px;font-weight:600;color:var(--dm-ink);line-height:1.2}
+    .dm-header-text h3{font-size:14.5px;font-weight:600;color:var(--dm-ink);line-height:1.2}
     .dm-header-text p{font-size:11px;color:var(--dm-ink-faint);margin-top:1px}
     .dm-close{
       margin-left:auto;background:none;border:none;cursor:pointer;
       color:var(--dm-ink-faint);padding:4px;border-radius:6px;
       display:flex;align-items:center;justify-content:center;transition:background .15s;
+      outline:none;
     }
     .dm-close:hover{background:var(--dm-surface);color:var(--dm-ink)}
     .dm-close svg{width:16px;height:16px}
@@ -109,9 +135,9 @@
     /* ─── Welcome View ─── */
     .dm-welcome-view{
       display:flex;flex-direction:column;align-items:center;
-      padding:32px 20px 24px;gap:16px;flex:1;
+      padding:36px 24px 28px;gap:20px;flex:1;
     }
-    .dm-orb-wrap{position:relative;width:90px;height:90px;margin-bottom:4px;flex-shrink:0}
+    .dm-orb-wrap{position:relative;width:80px;height:80px;margin-bottom:0;flex-shrink:0}
     .dm-orb{
       position:absolute;inset:0;border-radius:50%;
       background:conic-gradient(from 180deg at 50% 50%, var(--dm-accent) 0deg, transparent 120deg, var(--dm-accent) 240deg, transparent 360deg);
@@ -129,28 +155,31 @@
       font-size:26px;font-weight:700;color:var(--dm-ink);
     }
     .dm-welcome-greeting{
-      font-size:15px;font-weight:600;color:var(--dm-ink);
-      text-align:center;line-height:1.5;max-width:280px;
+      font-size:16px;font-weight:600;color:var(--dm-ink);
+      text-align:center;line-height:1.6;
     }
-    .dm-suggestion-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;max-width:320px}
+    .dm-suggestion-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:320px}
     .dm-suggestion-grid .dm-sg-btn:only-child,.dm-suggestion-grid .dm-sg-btn:nth-child(odd):last-child{grid-column:1/-1}
     .dm-sg-btn{
-      padding:10px 12px;border-radius:12px;border:1px solid var(--dm-border);
+      padding:12px 14px;border-radius:12px;border:1px solid var(--dm-border);
       background:var(--dm-bg);color:var(--dm-ink);font-family:var(--dm-font);
       font-size:12px;font-weight:500;cursor:pointer;text-align:left;
-      line-height:1.35;transition:border-color .15s,background .15s;
+      line-height:1.4;transition:border-color .15s,background .15s,transform .1s;
+      outline:none;
     }
-    .dm-sg-btn:hover{border-color:var(--dm-accent);background:var(--dm-accent-light)}
+    .dm-sg-btn:hover{border-color:var(--dm-accent);background:var(--dm-accent-light);transform:translateY(-1px)}
+    .dm-sg-btn:active{transform:scale(.97)}
+    .dm-sg-btn:focus-visible{border-color:var(--dm-accent);box-shadow:0 0 0 2px var(--dm-accent-light)}
 
     /* ─── Chat View ─── */
-    .dm-chat-view{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+    .dm-chat-view{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative}
     .dm-chat-view.fade-in{animation:dm-view-in .2s ease-out both}
     @keyframes dm-view-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
     /* ─── Messages ─── */
     .dm-messages{
-      flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;
-      min-height:200px;max-height:360px;
+      flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;
+      min-height:200px;max-height:380px;
       scrollbar-width:thin;scrollbar-color:var(--dm-border) transparent;
     }
     .dm-messages::-webkit-scrollbar{width:4px}
@@ -158,13 +187,45 @@
 
     @keyframes dm-msg-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
+    /* ─── Message Wrapper (bubble + timestamp) ─── */
+    .dm-msg-wrap{display:flex;flex-direction:column;animation:dm-msg-in .3s ease-out both;position:relative}
+    .dm-msg-wrap.user{align-items:flex-end}
+    .dm-msg-wrap.bot{align-items:flex-start}
+
     .dm-msg{
-      max-width:82%;padding:10px 14px;border-radius:14px;
+      max-width:78%;padding:11px 15px;border-radius:14px;
       font-size:13.5px;line-height:1.55;word-wrap:break-word;
-      animation:dm-msg-in .3s ease-out both;
     }
-    .dm-msg.user{align-self:flex-end;background:var(--dm-accent);color:#fff;border-bottom-right-radius:4px}
-    .dm-msg.bot{align-self:flex-start;background:var(--dm-surface);color:var(--dm-ink);border-bottom-left-radius:4px}
+    .dm-msg.user{background:var(--dm-accent);color:#fff;border-bottom-right-radius:6px}
+    .dm-msg.bot{background:var(--dm-surface);color:var(--dm-ink);border-bottom-left-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+
+    /* ─── Message Timestamp ─── */
+    .dm-msg-time{font-size:10px;color:var(--dm-ink-faint);margin-top:4px;opacity:.65}
+
+    /* ─── Copy Button ─── */
+    .dm-copy-btn{
+      position:absolute;top:0;right:-30px;
+      width:24px;height:24px;border-radius:6px;
+      background:var(--dm-surface);border:1px solid var(--dm-border);
+      color:var(--dm-ink-muted);cursor:pointer;
+      display:none;align-items:center;justify-content:center;
+      transition:background .15s,color .15s;
+    }
+    .dm-msg-wrap.bot:hover .dm-copy-btn{display:flex}
+    .dm-copy-btn:hover{background:var(--dm-accent-light);color:var(--dm-accent)}
+    .dm-copy-btn.copied{color:#16a34a}
+    .dm-copy-btn svg{width:12px;height:12px}
+
+    /* ─── Scroll-to-Bottom Button ─── */
+    .dm-scroll-btn{
+      position:absolute;bottom:10px;right:12px;z-index:10;
+      width:30px;height:30px;border-radius:50%;border:none;cursor:pointer;
+      background:var(--dm-accent);color:#fff;
+      display:none;align-items:center;justify-content:center;
+      font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.15);
+      transition:opacity .2s,transform .2s;
+    }
+    .dm-scroll-btn.show{display:flex;animation:dm-msg-in .2s ease-out both}
 
     /* ─── Typing ─── */
     .dm-typing{
@@ -185,13 +246,13 @@
     }
     .dm-card:hover{transform:scale(1.01);box-shadow:0 4px 16px rgba(0,0,0,.08)}
     .dm-card-img{width:100%;height:140px;object-fit:cover;display:block}
-    .dm-card-body{padding:12px 14px}
-    .dm-card-title{font-size:13px;font-weight:600;color:var(--dm-ink);margin-bottom:3px}
-    .dm-card-desc{font-size:12px;color:var(--dm-ink-muted);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-    .dm-card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+    .dm-card-body{padding:14px 16px}
+    .dm-card-title{font-size:13px;font-weight:600;color:var(--dm-ink);margin-bottom:5px}
+    .dm-card-desc{font-size:12px;color:var(--dm-ink-muted);line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .dm-card-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
     .dm-card-tag{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;background:var(--dm-accent-light);color:var(--dm-accent)}
     .dm-card-link{
-      display:block;padding:8px 14px;border-top:1px solid var(--dm-border);
+      display:block;padding:10px 16px;border-top:1px solid var(--dm-border);
       font-size:11px;font-weight:500;color:var(--dm-accent);text-decoration:none;
       text-align:center;transition:background .15s;
     }
@@ -199,8 +260,8 @@
 
     /* ─── Link Card ─── */
     .dm-link-card{
-      align-self:flex-start;display:flex;align-items:center;gap:10px;
-      padding:10px 14px;border-radius:12px;border:1px solid var(--dm-border);
+      align-self:flex-start;display:flex;align-items:center;gap:12px;
+      padding:12px 16px;border-radius:12px;border:1px solid var(--dm-border);
       background:var(--dm-bg);text-decoration:none;max-width:82%;
       transition:border-color .15s,transform .15s;animation:dm-msg-in .3s ease-out both;
     }
@@ -214,11 +275,11 @@
       align-self:flex-start;max-width:90%;border-radius:12px;
       border:1px solid var(--dm-border);background:var(--dm-bg);
       padding:16px;animation:dm-msg-in .3s ease-out both;
-      display:flex;flex-direction:column;gap:8px;
+      display:flex;flex-direction:column;gap:10px;
     }
     .dm-lead-form h4,.dm-booking-card h4{font-size:13px;font-weight:600;color:var(--dm-ink);margin-bottom:2px}
     .dm-form-input{
-      width:100%;padding:8px 12px;border-radius:8px;
+      width:100%;padding:10px 12px;border-radius:8px;
       border:1px solid var(--dm-border);font-family:var(--dm-font);font-size:13px;
       color:var(--dm-ink);background:var(--dm-surface);outline:none;
       transition:border-color .15s;
@@ -226,7 +287,7 @@
     .dm-form-input:focus{border-color:var(--dm-accent)}
     .dm-form-input::placeholder{color:var(--dm-ink-faint)}
     .dm-form-btn{
-      width:100%;padding:9px;border-radius:8px;border:none;
+      width:100%;padding:10px;border-radius:8px;border:none;
       background:var(--dm-accent);color:#fff;font-family:var(--dm-font);
       font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;
     }
@@ -236,7 +297,7 @@
 
     /* ─── CV Card ─── */
     .dm-cv-card{
-      align-self:flex-start;display:flex;align-items:center;gap:12px;
+      align-self:flex-start;display:flex;align-items:center;gap:14px;
       padding:12px 16px;border-radius:12px;border:1px solid var(--dm-border);
       background:var(--dm-bg);text-decoration:none;max-width:88%;
       transition:border-color .15s,transform .15s;animation:dm-msg-in .3s ease-out both;
@@ -249,20 +310,20 @@
 
     /* ─── Input Area ─── */
     .dm-input-area{
-      padding:10px 12px;border-top:1px solid var(--dm-border);
-      display:flex;gap:7px;align-items:flex-end;background:var(--dm-bg);flex-shrink:0;
+      padding:12px 14px;border-top:1px solid var(--dm-border);
+      display:flex;gap:9px;align-items:flex-end;background:var(--dm-bg);flex-shrink:0;
     }
     .dm-input{
       flex:1;border:1px solid var(--dm-border);border-radius:12px;
-      padding:9px 13px;font-size:13.5px;font-family:var(--dm-font);
+      padding:10px 13px;font-size:13.5px;font-family:var(--dm-font);
       color:var(--dm-ink);background:var(--dm-surface);
-      outline:none;resize:none;max-height:80px;min-height:38px;line-height:1.4;
+      outline:none;resize:none;max-height:80px;min-height:40px;line-height:1.4;
       transition:border-color .15s;
     }
     .dm-input:focus{border-color:var(--dm-accent)}
     .dm-input::placeholder{color:var(--dm-ink-faint)}
     .dm-voice-btn{
-      width:36px;height:36px;border-radius:10px;border:1px solid var(--dm-border);
+      width:40px;height:40px;border-radius:12px;border:1px solid var(--dm-border);
       background:var(--dm-bg);cursor:pointer;flex-shrink:0;
       display:flex;align-items:center;justify-content:center;
       color:var(--dm-ink-muted);transition:border-color .15s,color .15s;
@@ -271,7 +332,7 @@
     .dm-voice-btn.listening{border-color:#DC2626;color:#DC2626;animation:dm-pulse-shadow 1.5s ease-in-out infinite}
     .dm-voice-btn svg{width:16px;height:16px}
     .dm-send{
-      width:36px;height:36px;border-radius:10px;border:none;cursor:pointer;
+      width:40px;height:40px;border-radius:12px;border:none;cursor:pointer;
       background:var(--dm-accent);color:#fff;
       display:flex;align-items:center;justify-content:center;
       flex-shrink:0;transition:opacity .15s,transform .1s;
@@ -279,11 +340,12 @@
     .dm-send:hover{opacity:.88}
     .dm-send:active{transform:scale(.92)}
     .dm-send:disabled{opacity:.35;cursor:default}
+    .dm-send:focus-visible{box-shadow:0 0 0 3px var(--dm-accent-light)}
     .dm-send svg{width:16px;height:16px}
 
     /* ─── Branding ─── */
     .dm-branding{
-      text-align:center;padding:6px;font-size:10px;color:var(--dm-ink-faint);
+      text-align:center;padding:8px 10px;font-size:10px;color:var(--dm-ink-faint);
       border-top:1px solid var(--dm-border);flex-shrink:0;
     }
     .dm-branding a{color:var(--dm-accent);text-decoration:none;font-weight:600}
@@ -300,7 +362,7 @@
       position:fixed;bottom:90px;right:20px;z-index:2147483646;
       background:#111;color:#fff;padding:10px 16px;border-radius:10px;
       font-family:'Satoshi',system-ui,-apple-system,sans-serif;font-size:13px;
-      max-width:280px;box-shadow:0 4px 20px rgba(0,0,0,.2);
+      max-width:300px;box-shadow:0 4px 20px rgba(0,0,0,.2);
       pointer-events:none;opacity:0;transform:translateY(8px);
       transition:opacity .3s,transform .3s;
     }
@@ -310,10 +372,12 @@
     @media(max-width:480px){
       #digime-widget{bottom:12px;right:12px;left:12px}
       .dm-window{
-        position:fixed;inset:0;width:auto;right:0;left:0;bottom:0;
-        border-radius:0;max-height:100dvh;
+        position:fixed;top:0;right:0;bottom:0;left:0;
+        width:auto;border-radius:0;max-height:100dvh;
       }
-      .dm-messages{max-height:calc(100dvh - 230px)}
+      .dm-messages{max-height:calc(100dvh - 260px)}
+      .dm-msg{max-width:85%}
+      .dm-voice-btn,.dm-send{width:42px;height:42px}
       .dm-toast{right:12px;left:12px;bottom:80px}
     }
   `;
@@ -374,6 +438,7 @@
             <div class="dm-dot"></div><div class="dm-dot"></div><div class="dm-dot"></div>
           </div>
         </div>
+        <button class="dm-scroll-btn" id="dm-scroll-btn" title="Scroll to latest">↓</button>
       </div>
 
       <!-- Input -->
@@ -411,6 +476,16 @@
   const sendBtn       = document.getElementById("dm-send-btn");
   const voiceBtn      = document.getElementById("dm-voice-btn");
   const brandingEl    = document.getElementById("dm-branding");
+  const scrollBtnEl   = document.getElementById("dm-scroll-btn");
+
+  // ─── Scroll-to-Bottom ───
+  messagesEl.addEventListener("scroll", () => {
+    const dist = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+    scrollBtnEl.classList.toggle("show", dist > 80);
+  });
+  scrollBtnEl.addEventListener("click", () => {
+    messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
+  });
 
   // ─── Theme ───
   function updateTheme() {
@@ -449,8 +524,10 @@
     welcomeViewEl.style.display = "none";
     chatViewEl.style.display = "flex";
     chatViewEl.classList.add("fade-in");
-    // Don't repeat the greeting — it was already shown on the welcome screen.
-    // Jump straight into the user's message flow.
+    // Show greeting as first bot message so chat view doesn't start empty
+    if (messages.length === 0) {
+      appendMessage("bot", config?.greeting || "Hey! How can I help you?");
+    }
     requestAnimationFrame(() => {
       scrollToBottom();
       inputEl.focus();
@@ -778,10 +855,33 @@
 
   // ─── Utilities ───
   function appendMessage(role, content) {
+    const wrap = document.createElement("div");
+    wrap.className = `dm-msg-wrap ${role}`;
+
     const msg = document.createElement("div");
     msg.className = `dm-msg ${role}`;
     msg.textContent = content;
-    messagesEl.insertBefore(msg, typingEl);
+    wrap.appendChild(msg);
+
+    const time = document.createElement("div");
+    time.className = "dm-msg-time";
+    time.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    wrap.appendChild(time);
+
+    if (role === "bot") {
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "dm-copy-btn";
+      copyBtn.title = "Copy";
+      copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(content).catch(() => {});
+        copyBtn.classList.add("copied");
+        setTimeout(() => copyBtn.classList.remove("copied"), 1500);
+      });
+      wrap.appendChild(copyBtn);
+    }
+
+    messagesEl.insertBefore(wrap, typingEl);
     messages.push({ role, content });
     scrollToBottom();
   }
