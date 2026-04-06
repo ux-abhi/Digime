@@ -12,6 +12,29 @@
     return;
   }
 
+  // ─── Iframe Escape ───
+  // Framer (and similar builders) wrap Code Embed components inside sandboxed iframes.
+  // position:fixed inside an iframe anchors to the iframe viewport, not the page — breaking the widget.
+  // If we're inside an iframe, attempt to inject the script into the parent document instead.
+  if (window.self !== window.top) {
+    try {
+      // Same-origin parent (custom apps, non-sandboxed iframes): inject directly
+      const s = window.parent.document.createElement("script");
+      s.src = SCRIPT.src;
+      window.parent.document.body.appendChild(s);
+    } catch (e) {
+      // Cross-origin sandbox (Framer Code Embed, etc.): can't escape programmatically.
+      // User must inject via Site Settings → Custom Code → End of <body> instead.
+      console.warn(
+        "[DigiMe] Widget is running inside a cross-origin iframe and cannot render correctly.\n" +
+        "→ In Framer: go to Site Settings → Custom Code → paste the script tag at the end of <body>.\n" +
+        "→ In Webflow: paste in Project Settings → Custom Code → Footer Code.\n" +
+        "→ In any builder: add the script directly to the page HTML, not via an Embed component."
+      );
+    }
+    return; // Either the parent will run the real instance, or we stop here.
+  }
+
   // ─── State ───
   let config = null;
   let conversationId = null;
