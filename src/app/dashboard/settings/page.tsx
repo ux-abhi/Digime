@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Chatbot } from "@/lib/types";
 
@@ -11,6 +11,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -60,6 +62,21 @@ export default function SettingsPage() {
   function update(field: string, value: unknown) {
     if (!chatbot) return;
     setChatbot({ ...chatbot, [field]: value });
+  }
+
+  async function uploadAvatar(file: File) {
+    if (!chatbot) return;
+    setUploadingAvatar(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${chatbot.id}/avatar.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    if (!error) {
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      update("avatar_url", data.publicUrl + "?t=" + Date.now());
+    } else {
+      console.error("Avatar upload error:", error);
+    }
+    setUploadingAvatar(false);
   }
 
   if (loading) {
@@ -129,28 +146,58 @@ export default function SettingsPage() {
           </div>
           <div className="mt-4">
             <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
-              Avatar Image URL
+              Avatar Photo
             </label>
-            <div className="flex items-center gap-3">
-              {chatbot.avatar_url && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={chatbot.avatar_url}
-                  alt="Avatar preview"
-                  className="w-10 h-10 rounded-full object-cover border border-[var(--color-border)] shrink-0"
-                />
-              )}
-              {!chatbot.avatar_url && (
-                <div className="w-10 h-10 rounded-full bg-[var(--color-surface-sunken)] border border-[var(--color-border)] flex items-center justify-center text-sm font-bold text-[var(--color-ink-faint)] shrink-0">
-                  {(chatbot.name || "A")[0].toUpperCase()}
+            <div className="flex items-center gap-4">
+              {/* Circle preview */}
+              <div
+                className="relative w-16 h-16 rounded-full border-2 border-dashed border-[var(--color-border)] flex items-center justify-center overflow-hidden cursor-pointer hover:border-[var(--color-brand)] transition-colors group shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                title="Click to upload photo"
+              >
+                {chatbot.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={chatbot.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl font-bold text-[var(--color-ink-faint)]">
+                    {(chatbot.name || "A")[0].toUpperCase()}
+                  </span>
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 </div>
-              )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="text-xs font-medium text-[var(--color-brand)] hover:underline disabled:opacity-50"
+                >
+                  {uploadingAvatar ? "Uploading..." : "Upload photo"}
+                </button>
+                {chatbot.avatar_url && (
+                  <button
+                    type="button"
+                    onClick={() => update("avatar_url", null)}
+                    className="text-xs text-[var(--color-ink-faint)] hover:text-[var(--color-danger)] transition-colors"
+                  >
+                    Remove
+                  </button>
+                )}
+                <p className="text-[10px] text-[var(--color-ink-faint)]">JPG, PNG, WebP · Max 2MB</p>
+              </div>
               <input
-                type="url"
-                value={chatbot.avatar_url || ""}
-                onChange={(e) => update("avatar_url", e.target.value)}
-                placeholder="https://example.com/avatar.jpg"
-                className="flex-1 text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-3 py-2.5 rounded-[var(--radius-md)] outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/10 transition-all placeholder:text-[var(--color-ink-faint)]"
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); e.target.value = ""; }}
               />
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import type { KnowledgeEntry, KnowledgeEntryType } from "@/lib/types";
 
 const TYPE_CONFIG: Record<KnowledgeEntryType, { label: string; emoji: string; fields: string[]; color: string }> = {
@@ -25,6 +25,7 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const supabase = createClient();
 
   async function handleAdd() {
@@ -36,25 +37,57 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
       (data as Record<string, unknown>).tags = data.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     }
 
-    const { data: newEntry, error } = await supabase
-      .from("knowledge_entries")
-      .insert({
-        chatbot_id: chatbotId,
-        type: addingType,
-        data,
-        token_count: Math.ceil(JSON.stringify(data).length / 4),
-        priority: entries.filter((e) => e.type === addingType).length,
-      })
-      .select()
-      .single();
+    if (editingId) {
+      // Update existing entry via API
+      const res = await fetch("/api/knowledge", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingId, data }),
+      });
+      const result = await res.json();
+      if (result.entry) {
+        setEntries(entries.map((e) => e.id === editingId ? result.entry as KnowledgeEntry : e));
+        setAddingType(null);
+        setFormData({});
+        setEditingId(null);
+      }
+    } else {
+      const { data: newEntry, error } = await supabase
+        .from("knowledge_entries")
+        .insert({
+          chatbot_id: chatbotId,
+          type: addingType,
+          data,
+          token_count: Math.ceil(JSON.stringify(data).length / 4),
+          priority: entries.filter((e) => e.type === addingType).length,
+        })
+        .select()
+        .single();
 
-    if (newEntry) {
-      setEntries([...entries, newEntry as KnowledgeEntry]);
-      setAddingType(null);
-      setFormData({});
+      if (newEntry) {
+        setEntries([...entries, newEntry as KnowledgeEntry]);
+        setAddingType(null);
+        setFormData({});
+      }
+      if (error) console.error("Error adding entry:", error);
     }
-    if (error) console.error("Error adding entry:", error);
     setSaving(false);
+  }
+
+  function handleEditClick(entry: KnowledgeEntry) {
+    setEditingId(entry.id);
+    setAddingType(entry.type);
+    // Convert data to string form for form fields (tags array → comma string)
+    const raw = entry.data as unknown as Record<string, unknown>;
+    const stringified: Record<string, string> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      stringified[k] = Array.isArray(v) ? v.join(", ") : String(v ?? "");
+    }
+    setFormData(stringified);
+    // Scroll to form
+    requestAnimationFrame(() => {
+      document.querySelector(".dm-knowledge-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   async function handleDelete(id: string) {
@@ -103,12 +136,12 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
         ))}
       </div>
 
-      {/* Add Form */}
+      {/* Add / Edit Form */}
       {addingType && (
-        <div className="animate-fade-in-up bg-[var(--color-surface-raised)] border-2 border-[var(--color-brand)]/20 rounded-[var(--radius-lg)] p-6 mb-6">
+        <div className="dm-knowledge-form animate-fade-in-up bg-[var(--color-surface-raised)] border-2 border-[var(--color-brand)]/20 rounded-[var(--radius-lg)] p-6 mb-6">
           <h3 className="font-[var(--font-display)] font-700 text-[var(--color-ink)] mb-4 flex items-center gap-2">
             <span className="text-lg">{TYPE_CONFIG[addingType].emoji}</span>
-            New {TYPE_CONFIG[addingType].label}
+            {editingId ? `Edit ${TYPE_CONFIG[addingType].label}` : `New ${TYPE_CONFIG[addingType].label}`}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {TYPE_CONFIG[addingType].fields.map((field) => {
@@ -145,10 +178,10 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
               disabled={saving}
               className="text-sm font-semibold bg-[var(--color-brand)] text-white px-5 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-brand-dark)] transition-all disabled:opacity-50 shadow-sm shadow-[var(--color-brand)]/20"
             >
-              {saving ? "Saving..." : "Save Entry"}
+              {saving ? "Saving..." : editingId ? "Update Entry" : "Save Entry"}
             </button>
             <button
-              onClick={() => { setAddingType(null); setFormData({}); }}
+              onClick={() => { setAddingType(null); setFormData({}); setEditingId(null); }}
               className="text-sm font-medium text-[var(--color-ink-muted)] px-5 py-2.5 rounded-[var(--radius-md)] hover:bg-[var(--color-surface-sunken)] transition-colors"
             >
               Cancel
@@ -204,12 +237,22 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
                         </p>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleDelete(entry.id)}
-                      className="text-[var(--color-ink-faint)] hover:text-[var(--color-danger)] transition-colors shrink-0 p-1 rounded-md hover:bg-[var(--color-danger)]/5"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleEditClick(entry)}
+                        className="text-[var(--color-ink-faint)] hover:text-[var(--color-brand)] transition-colors p-1 rounded-md hover:bg-[var(--color-brand)]/5"
+                        title="Edit entry"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(entry.id)}
+                        className="text-[var(--color-ink-faint)] hover:text-[var(--color-danger)] transition-colors p-1 rounded-md hover:bg-[var(--color-danger)]/5"
+                        title="Delete entry"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
