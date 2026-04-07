@@ -26,6 +26,7 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const supabase = createClient();
 
   async function handleAdd() {
@@ -91,6 +92,7 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
   }
 
   async function handleDelete(id: string) {
+    setConfirmDeleteId(null);
     setDeletingId(id);
     const { error } = await supabase.from("knowledge_entries").delete().eq("id", id);
     if (!error) {
@@ -154,12 +156,17 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
                     {field === "level" && <span className="text-[var(--color-ink-faint)]"> (beginner/intermediate/advanced/expert)</span>}
                   </label>
                   {isLong ? (
-                    <textarea
-                      rows={3}
-                      value={formData[field] || ""}
-                      onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
-                      className="w-full text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-3 py-2.5 rounded-[var(--radius-md)] outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/10 transition-all resize-none"
-                    />
+                    <>
+                      <textarea
+                        rows={3}
+                        value={formData[field] || ""}
+                        onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
+                        className="w-full text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-3 py-2.5 rounded-[var(--radius-md)] outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/10 transition-all resize-none"
+                      />
+                      <p className="text-[10px] text-[var(--color-ink-faint)] mt-1 text-right">
+                        {(formData[field] || "").length} chars
+                      </p>
+                    </>
                   ) : (
                     <input
                       type="text"
@@ -238,20 +245,40 @@ export function KnowledgeEditor({ chatbotId, entries: initialEntries }: Props) {
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => handleEditClick(entry)}
-                        className="text-[var(--color-ink-faint)] hover:text-[var(--color-brand)] transition-colors p-1 rounded-md hover:bg-[var(--color-brand)]/5"
-                        title="Edit entry"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(entry.id)}
-                        className="text-[var(--color-ink-faint)] hover:text-[var(--color-danger)] transition-colors p-1 rounded-md hover:bg-[var(--color-danger)]/5"
-                        title="Delete entry"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {confirmDeleteId === entry.id ? (
+                        <>
+                          <span className="text-xs text-[var(--color-danger)] font-medium mr-1">Delete?</span>
+                          <button
+                            onClick={() => handleDelete(entry.id)}
+                            className="text-xs font-semibold text-white bg-[var(--color-danger)] px-2 py-1 rounded-md hover:opacity-90 transition-opacity"
+                          >
+                            Yes
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-xs font-medium text-[var(--color-ink-muted)] px-2 py-1 rounded-md hover:bg-[var(--color-surface-sunken)] transition-colors"
+                          >
+                            No
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => handleEditClick(entry)}
+                            className="text-[var(--color-ink-faint)] hover:text-[var(--color-brand)] transition-colors p-1 rounded-md hover:bg-[var(--color-brand)]/5"
+                            aria-label="Edit entry"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(entry.id)}
+                            className="text-[var(--color-ink-faint)] hover:text-[var(--color-danger)] transition-colors p-1 rounded-md hover:bg-[var(--color-danger)]/5"
+                            aria-label="Delete entry"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 );

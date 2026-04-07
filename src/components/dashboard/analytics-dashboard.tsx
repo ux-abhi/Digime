@@ -73,17 +73,66 @@ const STAT_CARDS = [
   { key: "bookings", label: "Bookings", icon: "📅", bg: "bg-orange-50" },
 ] as const;
 
+type Period = "7d" | "30d" | "all";
+
+function filterByPeriod<T extends { created_at?: string; started_at?: string }>(
+  items: T[],
+  period: Period,
+  dateKey: "created_at" | "started_at"
+): T[] {
+  if (period === "all") return items;
+  const cutoff = Date.now() - (period === "7d" ? 7 : 30) * 86400 * 1000;
+  return items.filter((item) => new Date(item[dateKey] as string).getTime() >= cutoff);
+}
+
 export function AnalyticsDashboard({ stats, conversations, leads }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [period, setPeriod] = useState<Period>("30d");
+
+  const filteredLeads = filterByPeriod(leads, period, "created_at");
+  const filteredConvs = filterByPeriod(conversations, period, "started_at");
+
+  const filteredStats = {
+    conversations: filteredConvs.length,
+    messages: filteredConvs.reduce((s, c) => s + (c.message_count || 0), 0),
+    leads: filteredLeads.length,
+    bookings: period === "all" ? stats.bookings : stats.bookings, // bookings not time-filtered (no date in prop)
+  };
+
+  const PERIODS: { value: Period; label: string }[] = [
+    { value: "7d", label: "7d" },
+    { value: "30d", label: "30d" },
+    { value: "all", label: "All" },
+  ];
 
   return (
     <div>
-      <h1 className="font-[var(--font-display)] text-2xl font-700 text-[var(--color-ink)] mb-2">
-        Analytics
-      </h1>
-      <p className="text-sm text-[var(--color-ink-muted)] mb-8">
-        See how visitors interact with your chatbot.
-      </p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="font-[var(--font-display)] text-2xl font-700 text-[var(--color-ink)] mb-1">
+            Analytics
+          </h1>
+          <p className="text-sm text-[var(--color-ink-muted)]">
+            See how visitors interact with your chatbot.
+          </p>
+        </div>
+        {/* Period selector */}
+        <div className="flex items-center bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-[var(--radius-md)] p-0.5 gap-0.5 shrink-0">
+          {PERIODS.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => setPeriod(p.value)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-[var(--radius-sm)] transition-all ${
+                period === p.value
+                  ? "bg-[var(--color-brand)] text-white shadow-sm"
+                  : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -104,7 +153,7 @@ export function AnalyticsDashboard({ stats, conversations, leads }: Props) {
               </div>
             </div>
             <p className="text-3xl font-semibold text-[var(--color-ink)] relative z-10">
-              {stats[card.key]}
+              {filteredStats[card.key]}
             </p>
           </div>
         ))}
@@ -116,12 +165,12 @@ export function AnalyticsDashboard({ stats, conversations, leads }: Props) {
           <h2 className="text-sm font-semibold text-[var(--color-ink-muted)] uppercase tracking-wide flex items-center gap-2">
             <span>🎯</span> Leads
             <span className="text-xs font-normal text-[var(--color-ink-faint)]">
-              ({leads.length})
+              ({filteredLeads.length})
             </span>
           </h2>
-          {leads.length > 0 && (
+          {filteredLeads.length > 0 && (
             <button
-              onClick={() => exportLeadsCsv(leads)}
+              onClick={() => exportLeadsCsv(filteredLeads)}
               className="text-xs font-medium text-[var(--color-ink-muted)] border border-[var(--color-border)] px-3 py-1.5 rounded-[var(--radius-sm)] hover:bg-[var(--color-surface-sunken)] hover:border-[var(--color-border-strong)] transition-all"
             >
               Export CSV
@@ -129,9 +178,9 @@ export function AnalyticsDashboard({ stats, conversations, leads }: Props) {
           )}
         </div>
 
-        {leads.length > 0 ? (
+        {filteredLeads.length > 0 ? (
           <div className="space-y-2">
-            {leads.map((lead) => (
+            {filteredLeads.map((lead) => (
               <div
                 key={lead.id}
                 className="bg-[var(--color-surface-raised)] border border-[var(--color-border)] rounded-[var(--radius-lg)] p-4 hover:shadow-sm hover:border-[var(--color-brand)]/15 transition-all"
@@ -181,13 +230,13 @@ export function AnalyticsDashboard({ stats, conversations, leads }: Props) {
         <h2 className="text-sm font-semibold text-[var(--color-ink-muted)] uppercase tracking-wide mb-3 flex items-center gap-2">
           <span>💬</span> Conversations
           <span className="text-xs font-normal text-[var(--color-ink-faint)]">
-            ({conversations.length})
+            ({filteredConvs.length})
           </span>
         </h2>
 
-        {conversations.length > 0 ? (
+        {filteredConvs.length > 0 ? (
           <div className="space-y-2">
-            {conversations.map((conv) => {
+            {filteredConvs.map((conv) => {
               const isExpanded = expandedId === conv.id;
               return (
                 <div
@@ -197,6 +246,7 @@ export function AnalyticsDashboard({ stats, conversations, leads }: Props) {
                   {/* Row */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : conv.id)}
+                    aria-expanded={isExpanded}
                     className="w-full p-4 flex items-center justify-between text-left"
                   >
                     <div className="flex items-center gap-3">

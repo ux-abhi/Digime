@@ -11,7 +11,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
@@ -32,6 +34,13 @@ export default function SettingsPage() {
     }
     load();
   }, []);
+
+  // Warn before leaving with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => { if (isDirty) e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   async function handleSave() {
     if (!chatbot) return;
@@ -54,7 +63,7 @@ export default function SettingsPage() {
       })
       .eq("id", chatbot.id);
 
-    if (!error) setSaved(true);
+    if (!error) { setSaved(true); setIsDirty(false); }
     setSaving(false);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -62,6 +71,7 @@ export default function SettingsPage() {
   function update(field: string, value: unknown) {
     if (!chatbot) return;
     setChatbot({ ...chatbot, [field]: value });
+    setIsDirty(true);
   }
 
   async function uploadAvatar(file: File) {
@@ -75,6 +85,8 @@ export default function SettingsPage() {
       update("avatar_url", data.publicUrl + "?t=" + Date.now());
     } else {
       console.error("Avatar upload error:", error);
+      setAvatarError("Upload failed. Check file size (max 2MB) and try again.");
+      setTimeout(() => setAvatarError(null), 4000);
     }
     setUploadingAvatar(false);
   }
@@ -112,6 +124,12 @@ export default function SettingsPage() {
           {saved ? "✓ Saved" : saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
+
+      {isDirty && (
+        <div className="mb-4 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-[var(--radius-md)] px-3 py-2">
+          <span>⚠</span> You have unsaved changes.
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* General */}
@@ -200,6 +218,9 @@ export default function SettingsPage() {
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); e.target.value = ""; }}
               />
             </div>
+            {avatarError && (
+              <p className="text-xs text-[var(--color-danger)] mt-2">{avatarError}</p>
+            )}
           </div>
         </section>
 
@@ -266,6 +287,28 @@ export default function SettingsPage() {
               onChange={(e) => update("greeting", e.target.value)}
               className="w-full text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-3 py-2.5 rounded-[var(--radius-md)] outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/10 transition-all resize-none"
             />
+          </div>
+          <div className="mt-4">
+            <label className="block text-xs font-medium text-[var(--color-ink-muted)] mb-1.5">
+              Suggested Questions{" "}
+              <span className="text-[var(--color-ink-faint)] font-normal">(shown in widget — up to 4)</span>
+            </label>
+            <div className="space-y-2">
+              {[0, 1, 2, 3].map((i) => (
+                <input
+                  key={i}
+                  type="text"
+                  value={chatbot.suggested_questions?.[i] || ""}
+                  onChange={(e) => {
+                    const qs = [...(chatbot.suggested_questions || ["", "", "", ""])];
+                    qs[i] = e.target.value;
+                    update("suggested_questions", qs.filter(Boolean));
+                  }}
+                  placeholder={`Question ${i + 1}…`}
+                  className="w-full text-sm bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-ink)] px-3 py-2.5 rounded-[var(--radius-md)] outline-none focus:border-[var(--color-brand)] focus:ring-2 focus:ring-[var(--color-brand)]/10 transition-all placeholder:text-[var(--color-ink-faint)]"
+                />
+              ))}
+            </div>
           </div>
         </section>
 
@@ -358,6 +401,9 @@ export default function SettingsPage() {
               </p>
             </div>
             <button
+              role="switch"
+              aria-checked={chatbot.is_active}
+              aria-label="Chatbot active status"
               onClick={() => update("is_active", !chatbot.is_active)}
               className={`relative w-12 h-7 rounded-full transition-all duration-200 ${
                 chatbot.is_active ? "bg-[var(--color-success)]" : "bg-[var(--color-border-strong)]"
