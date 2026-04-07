@@ -202,19 +202,29 @@
     /* ─── Message Timestamp ─── */
     .dm-msg-time{font-size:10px;color:var(--dm-ink-faint);margin-top:4px;opacity:.65}
 
-    /* ─── Copy Button ─── */
+    /* ─── Message Actions (inline copy button row) ─── */
+    .dm-msg-actions{display:none;gap:4px;margin-top:3px}
+    .dm-msg-wrap.bot:hover .dm-msg-actions{display:flex}
     .dm-copy-btn{
-      position:absolute;top:0;right:-30px;
-      width:24px;height:24px;border-radius:6px;
-      background:var(--dm-surface);border:1px solid var(--dm-border);
-      color:var(--dm-ink-muted);cursor:pointer;
-      display:none;align-items:center;justify-content:center;
-      transition:background .15s,color .15s;
+      background:none;border:none;cursor:pointer;outline:none;
+      display:flex;align-items:center;gap:4px;font-size:10px;
+      color:var(--dm-ink-faint);font-family:var(--dm-font);
+      padding:2px 6px;border-radius:4px;transition:color .15s;
     }
-    .dm-msg-wrap.bot:hover .dm-copy-btn{display:flex}
-    .dm-copy-btn:hover{background:var(--dm-accent-light);color:var(--dm-accent)}
+    .dm-copy-btn:hover{color:var(--dm-accent)}
     .dm-copy-btn.copied{color:#16a34a}
-    .dm-copy-btn svg{width:12px;height:12px}
+    .dm-copy-btn svg{width:11px;height:11px}
+
+    /* ─── Follow-Up Chips ─── */
+    .dm-follow-ups{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;padding:0 2px}
+    .dm-follow-up-btn{
+      background:var(--dm-surface);border:1px solid var(--dm-border);
+      color:var(--dm-ink-muted);border-radius:20px;
+      padding:5px 11px;font-size:11.5px;cursor:pointer;
+      font-family:var(--dm-font);transition:border-color .15s,color .15s,background .15s;
+      white-space:nowrap;outline:none;
+    }
+    .dm-follow-up-btn:hover{border-color:var(--dm-accent);color:var(--dm-accent);background:var(--dm-accent-light)}
 
     /* ─── Scroll-to-Bottom Button ─── */
     .dm-scroll-btn{
@@ -504,6 +514,7 @@
     unreadEl.style.display = "none";
     requestAnimationFrame(() => inputEl.focus());
     try { window.parent.postMessage({ type: "digime:opened" }, "*"); } catch(e) {}
+    try { window.parent.postMessage("chat:open", "*"); } catch(e) {}
   }
 
   function closeWidget() {
@@ -512,6 +523,7 @@
     fab.innerHTML = ICONS.chat;
     fab.classList.remove("open");
     try { window.parent.postMessage({ type: "digime:closed" }, "*"); } catch(e) {}
+    try { window.parent.postMessage("chat:closed", "*"); } catch(e) {}
   }
 
   fab.addEventListener("click", () => isOpen ? closeWidget() : openWidget());
@@ -524,10 +536,6 @@
     welcomeViewEl.style.display = "none";
     chatViewEl.style.display = "flex";
     chatViewEl.classList.add("fade-in");
-    // Show greeting as first bot message so chat view doesn't start empty
-    if (messages.length === 0) {
-      appendMessage("bot", config?.greeting || "Hey! How can I help you?");
-    }
     requestAnimationFrame(() => {
       scrollToBottom();
       inputEl.focus();
@@ -554,6 +562,8 @@
   async function sendMessage() {
     const text = inputEl.value.trim();
     if (!text || isTyping) return;
+    // Remove any existing follow-up chips
+    messagesEl.querySelector(".dm-follow-ups")?.remove();
 
     // Transition to chat if still on welcome screen
     if (uiState === "welcome") switchToChat();
@@ -590,6 +600,7 @@
 
       conversationId = data.conversation_id;
       processResponse(data.response);
+      renderFollowUpChips();
     } catch (err) {
       console.error("[DigiMe] Chat error:", err);
       appendMessage("bot", "Sorry, I'm having trouble connecting. Please try again in a moment.");
@@ -869,16 +880,20 @@
     wrap.appendChild(time);
 
     if (role === "bot") {
+      const actions = document.createElement("div");
+      actions.className = "dm-msg-actions";
       const copyBtn = document.createElement("button");
       copyBtn.className = "dm-copy-btn";
-      copyBtn.title = "Copy";
-      copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>`;
+      copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg><span>Copy</span>`;
       copyBtn.addEventListener("click", () => {
         navigator.clipboard.writeText(content).catch(() => {});
         copyBtn.classList.add("copied");
-        setTimeout(() => copyBtn.classList.remove("copied"), 1500);
+        const span = copyBtn.querySelector("span");
+        if (span) span.textContent = "Copied!";
+        setTimeout(() => { copyBtn.classList.remove("copied"); if (span) span.textContent = "Copy"; }, 1500);
       });
-      wrap.appendChild(copyBtn);
+      actions.appendChild(copyBtn);
+      wrap.appendChild(actions);
     }
 
     messagesEl.insertBefore(wrap, typingEl);
@@ -892,6 +907,32 @@
     });
   }
 
+  // ─── Follow-Up Chips ───
+  function renderFollowUpChips() {
+    const existing = messagesEl.querySelector(".dm-follow-ups");
+    if (existing) existing.remove();
+    const suggestions = config?.suggested_questions || [];
+    if (!suggestions.length) return;
+    const asked = new Set(messages.filter(m => m.role === "user").map(m => m.content.trim().toLowerCase()));
+    const chips = suggestions.filter(q => !asked.has(q.trim().toLowerCase())).slice(0, 3);
+    if (chips.length === 0) return;
+    const row = document.createElement("div");
+    row.className = "dm-follow-ups";
+    chips.forEach(q => {
+      const btn = document.createElement("button");
+      btn.className = "dm-follow-up-btn";
+      btn.textContent = q;
+      btn.addEventListener("click", () => {
+        row.remove();
+        inputEl.value = q;
+        sendMessage();
+      });
+      row.appendChild(btn);
+    });
+    messagesEl.insertBefore(row, typingEl);
+    scrollToBottom();
+  }
+
   function escapeHtml(str) {
     const div = document.createElement("div");
     div.textContent = str || "";
@@ -900,6 +941,8 @@
 
   // ─── postMessage Bridge ───
   window.addEventListener("message", (e) => {
+    // Support both digime:* protocol and toggle:chat protocol (for iframe embeds)
+    if (e.data === "toggle:chat") { isOpen ? closeWidget() : openWidget(); return; }
     if (!e.data || typeof e.data !== "object") return;
     if (e.data.type === "digime:open")  openWidget();
     if (e.data.type === "digime:close") closeWidget();
@@ -956,9 +999,12 @@
       // Show unread badge
       unreadEl.style.display = "flex";
 
-      // Show toast after a short delay
+      // Show toast after a short delay + notify parent iframe container
       setTimeout(() => {
-        if (!isOpen) showToast(greeting);
+        if (!isOpen) {
+          showToast(greeting);
+          try { window.parent.postMessage("chat:greet", "*"); } catch(e) {}
+        }
       }, 1500);
 
     } catch (err) {
